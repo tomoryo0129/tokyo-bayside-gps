@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#123b2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="江戸川ショートコースGPS">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>東京ベイサイドゴルフ GPSナビ</title>
+<style>
+:root{--g:#123b2a;--g2:#286544;--bg:#f2f6f0;--ink:#183126;--muted:#63766a;--line:#dce5dc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:var(--g);color:#fff;padding:20px 18px 24px;border-radius:0 0 24px 24px}
+.top{display:flex;justify-content:space-between;font-size:12px;opacity:.9}h1{font-size:23px;margin:15px 0 5px}.sub{font-size:13px;opacity:.82}
+main{max-width:620px;margin:auto;padding:16px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 3px 14px #173c2810}
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}select,input,textarea,button{font:inherit}
+select,input,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:white;color:var(--ink);margin-bottom:12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.distances{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.dist{border-radius:14px;background:#edf5e9;padding:13px 4px;text-align:center}.dist.mid{background:#dcefcf;outline:2px solid #a5cc86}
+.name{font-size:11px;color:#45634b}.num{font-size:clamp(24px,7vw,34px);font-weight:750;margin:5px 0;letter-spacing:-1px}.unit{font-size:11px;color:#526b56}
+button{border:0;border-radius:12px;padding:13px 16px;background:var(--g2);color:white;font-weight:650;width:100%;cursor:pointer}
+button.secondary{background:#e8f0e8;color:var(--g);margin-top:8px}.status{font-size:13px;line-height:1.5;color:var(--muted);margin-top:10px}
+small.note,.note{font-size:12px;color:var(--muted);line-height:1.6}details summary{cursor:pointer;font-weight:650;margin-bottom:12px}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:8px 20px 24px}
+
+.shot-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+button.warn{background:#a65b27}
+.log-list{margin:10px 0 0;padding:0;list-style:none}
+.log-list li{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.log-list li:last-child{border-bottom:0}
+.pill{display:inline-block;border-radius:999px;padding:3px 8px;background:#e8f0e8;color:var(--g);font-size:11px}
+.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.score-grid select{margin-bottom:0}
+.history{font-size:13px;line-height:1.6}
+
+.quick-card{position:sticky;top:0;z-index:50;box-shadow:0 5px 18px #173c2820;border-color:#b8cfbd}
+.quick-card .distances{margin:8px 0}
+.reference-count{display:flex;align-items:center;justify-content:space-between;background:#123b2a;color:#fff;border-radius:13px;padding:9px 14px;margin:8px 0}
+.reference-count strong{font-size:25px;line-height:1.1}
+.reference-count small{font-size:11px;opacity:.85}
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick-actions button{padding:14px 8px;font-size:14px}
+.penalty-row{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;margin-top:8px}
+.penalty-row select{margin:0;padding:10px}
+#reviewMap{height:420px;width:100%;border-radius:14px;background:#e8eee5}
+button.danger{background:#a43b32;color:#fff}
+button:disabled{opacity:.45}
+@media(max-height:740px){header{padding:12px 16px 14px}h1{margin:8px 0 3px;font-size:20px}main{padding:9px}.quick-card{padding:11px}.dist{padding:8px 3px}.num{font-size:26px}}
+</style>
+
+</head>
+<body>
+<header><div class="top"><span>⛳ GPS GOLF NAVIGATOR</span><span>東京ベイサイドゴルフコース専用</span></div><h1>東京ベイサイドゴルフ GPSナビ</h1><div class="sub">現在地からグリーン手前・中央・奥まで</div></header>
+<main>
+<section class="card quick-card">
+<label for="course">コース</label><select id="course"><option value="OUT">OUTコース</option><option value="IN">INコース</option></select>
+<label for="hole">ホール</label><select id="hole"></select>
+<div class="distances">
+ <div class="dist"><div class="name">手前</div><div class="num" id="front">—</div><div class="unit">ヤード</div></div>
+ <div class="dist mid"><div class="name">中央</div><div class="num" id="center">—</div><div class="unit">ヤード</div></div>
+ <div class="dist"><div class="name">奥</div><div class="num" id="back">—</div><div class="unit">ヤード</div></div>
+</div>
+<div class="reference-count"><span>このホールの参考打数<small style="display:block">ショット記録＋事前に選択した罰打</small></span><strong id="referenceStrokes">0打</strong></div>
+<div class="penalty-row"><label for="penaltyBefore">打つ前の罰打</label><select id="penaltyBefore"><option value="0">罰打なし</option><option value="1">1打罰（OB等）</option><option value="2">2打罰（ハザード等）</option></select></div>
+<div class="quick-actions" style="margin-top:9px"><button id="recordShot">ここから打った</button><button id="greenReached" class="warn">グリーン／カラー到達</button></div>
+<div class="quick-actions" style="margin-top:7px"><button id="locate" class="secondary">現在地を取得</button><button id="tracking" class="secondary">GPS追跡を開始</button></div>
+<p class="note" id="holeInfo">ホールを選択してください。</p>
+<div class="status" id="quickStatus">GPS未取得</div>
+</section>
+<section class="card">
+
+<div class="status" id="status">GPSを取得するには、GitHub PagesのHTTPSページで位置情報を許可してください。</div>
+</section>
+<section class="card">
+<details>
+<summary>コースデータを確認・編集</summary>
+<p class="note">各ホールのグリーン手前・中央・奥の緯度経度が必要です。下記はユーザー提供の東京ベイサイドゴルフコースOUT・IN全18ホール分のグリーン手前・中央・奥の座標です。</p>
+<label for="json">コースデータ JSON（座標順：緯度, 経度）</label>
+<textarea id="json" rows="14" spellcheck="false"></textarea>
+<button id="apply">反映する</button><button class="secondary" id="save">JSONをダウンロード</button>
+<div class="status" id="dataStatus"></div>
+</details>
+</section>
+
+<section class="card">
+  <b>ショット地点の記録</b>
+  <p class="note">グリーン／カラーに到達するまで、打つ前に地点を記録してください。グリーン上・カラー上では記録操作を省略できます。</p>
+  <p class="note">地点記録は画面上部の固定操作パネルから行えます。</p>
+  <div class="status" id="shotStatus">GPS位置を取得してからショット地点を記録できます。</div>
+  <ul class="log-list" id="shotList"></ul>
+</section>
+<section class="card">
+  <b>ホール終了後のスコア登録</b>
+  <p class="note">ホールアウト後にショット数とパット数を選んで保存します。</p>
+  <div class="score-grid">
+    <div><label for="strokes">ショット数</label><select id="strokes"></select></div>
+    <div><label for="putts">パット数</label><select id="putts"></select></div>
+  </div>
+  <button id="saveScore" style="margin-top:12px">このホールのスコアを保存</button>
+  <div class="status" id="scoreStatus"></div>
+</section>
+<section class="card">
+  <b>ラウンド記録</b>
+  <div class="history" id="roundSummary">各ホールのスコアはここに表示されます。</div>
+  <button class="secondary" id="exportRound">ラウンド記録をJSONで保存</button>
+  <button class="danger" id="clearScores">保存したスコアを全クリア</button>
+<button class="danger" id="fullReset" style="margin-top:10px;background:#8b1e1e">試験データを完全初期化（ショットGPS含む）</button>
+<div class="status" id="fullResetStatus"></div>
+  <div class="status" id="clearStatus"></div>
+</section>
+<section class="card">
+  <b>ラウンド後のショット軌跡確認</b>
+  <p class="note">保存したGPS地点を選択ホールごとに線で結び、国土地理院の航空写真上に表示します。航空写真はこの画面を開いた時だけ読み込みます。</p>
+  <label for="reviewCourse">コース</label><select id="reviewCourse"><option value="OUT">OUTコース</option><option value="IN">INコース</option></select>
+  <label for="reviewHole">ホール</label><select id="reviewHole"></select>
+  <button id="showReview">このホールの軌跡を表示</button>
+  <div id="reviewStatus" class="status">ラウンド終了後に表示してください。</div>
+  <div id="reviewMap" style="display:none;margin-top:10px"></div>
+  <div id="reviewDetails" class="history"></div>
+</section>
+<section class="card"><b>距離計測の注意</b><p class="note">GPS位置から各登録点までの直線距離をヤード換算しています。GPS誤差、グリーンの形状・傾斜、コース上の高低差により実際のプレー距離とは異なる場合があります。</p></section>
+</main>
+<footer>東京ベイサイドゴルフ GPSナビ · OUT・IN各9ホール／合計18ホール</footer>
+<script>
+const sample={
+  "courseName": "東京ベイサイドゴルフコース",
+  "routes": {
+    "OUT": {
+      "1": {
+        "front": [
+          35.2007832,
+          139.8462223
+        ],
+        "center": [
+          35.2006884,
+          139.84635
+        ],
+        "back": [
+          35.2005596,
+          139.846462
+        ],
+        "par": 4
+      },
+      "2": {
+        "front": [
+          35.2004097,
+          139.8489866
+        ],
+        "center": [
+          35.2005262,
+          139.8491164
+        ],
+        "back": [
+          35.2006421,
+          139.8492485
+        ],
+        "par": 3
+      },
+      "3": {
+        "front": [
+          35.1992426,
+          139.8491298
+        ],
+        "center": [
+          35.1992078,
+          139.8489072
+        ],
+        "back": [
+          35.1992059,
+          139.8486735
+        ],
+        "par": 4
+      },
+      "4": {
+        "front": [
+          35.1987684,
+          139.8451665
+        ],
+        "center": [
+          35.1986366,
+          139.8451142
+        ],
+        "back": [
+          35.1984911,
+          139.8450927
+        ],
+        "par": 4
+      },
+      "5": {
+        "front": [
+          35.1986492,
+          139.8465301
+        ],
+        "center": [
+          35.1987319,
+          139.8466665
+        ],
+        "back": [
+          35.1988248,
+          139.8468023
+        ],
+        "par": 3
+      },
+      "6": {
+        "front": [
+          35.1968585,
+          139.844965
+        ],
+        "center": [
+          35.196724,
+          139.8449174
+        ],
+        "back": [
+          35.1965588,
+          139.8448664
+        ],
+        "par": 4
+      },
+      "7": {
+        "front": [
+          35.1923632,
+          139.8426083
+        ],
+        "center": [
+          35.1922371,
+          139.8425926
+        ],
+        "back": [
+          35.1921127,
+          139.8425973
+        ],
+        "par": 5
+      },
+      "8": {
+        "front": [
+          35.1950379,
+          139.8425842
+        ],
+        "center": [
+          35.1950938,
+          139.8427797
+        ],
+        "back": [
+          35.1950825,
+          139.8429604
+        ],
+        "par": 4
+      },
+      "9": {
+        "front": [
+          35.1991963,
+          139.8430885
+        ],
+        "center": [
+          35.1993396,
+          139.8429835
+        ],
+        "back": [
+          35.1994163,
+          139.8428182
+        ],
+        "par": 5
+      }
+    },
+    "IN": {
+      "1": {
+        "front": [
+          35.2010823,
+          139.8412713
+        ],
+        "center": [
+          35.2012152,
+          139.841285
+        ],
+        "back": [
+          35.2013494,
+          139.8412796
+        ],
+        "par": 3
+      },
+      "2": {
+        "front": [
+          35.1967708,
+          139.8390772
+        ],
+        "center": [
+          35.1966281,
+          139.8391248
+        ],
+        "back": [
+          35.1964703,
+          139.8391359
+        ],
+        "par": 5
+      },
+      "3": {
+        "front": [
+          35.195665,
+          139.8360752
+        ],
+        "center": [
+          35.1955598,
+          139.8359216
+        ],
+        "back": [
+          35.1954456,
+          139.8357979
+        ],
+        "par": 4
+      },
+      "4": {
+        "front": [
+          35.1944847,
+          139.8361409
+        ],
+        "center": [
+          35.1943976,
+          139.835998
+        ],
+        "back": [
+          35.1943439,
+          139.8358401
+        ],
+        "par": 3
+      },
+      "5": {
+        "front": [
+          35.1952573,
+          139.8397709
+        ],
+        "center": [
+          35.1953368,
+          139.8398953
+        ],
+        "back": [
+          35.1953782,
+          139.8400069
+        ],
+        "par": 4
+      },
+      "6": {
+        "front": [
+          35.1969982,
+          139.8408056
+        ],
+        "center": [
+          35.1971023,
+          139.8408005
+        ],
+        "back": [
+          35.197201,
+          139.8407999
+        ],
+        "par": 4
+      },
+      "7": {
+        "front": [
+          35.1988821,
+          139.8412686
+        ],
+        "center": [
+          35.199027,
+          139.8413524
+        ],
+        "back": [
+          35.1991018,
+          139.8414714
+        ],
+        "par": 4
+      },
+      "8": {
+        "front": [
+          35.1959716,
+          139.8420769
+        ],
+        "center": [
+          35.1958604,
+          139.8420732
+        ],
+        "back": [
+          35.1957489,
+          139.842094
+        ],
+        "par": 4
+      },
+      "9": {
+        "front": [
+          35.1991711,
+          139.8421443
+        ],
+        "center": [
+          35.1993363,
+          139.8422033
+        ],
+        "back": [
+          35.1994574,
+          139.8422409
+        ],
+        "par": 5
+      }
+    }
+  }
+};
+let data=structuredClone(sample),pos=null,watch=null;
+let shotsByHole=JSON.parse(localStorage.getItem("tokyoBaysideGolfShots")||"{}");
+let scoresByHole=JSON.parse(localStorage.getItem("tokyoBaysideGolfScores")||"{}");
+let greenReachedByHole=JSON.parse(localStorage.getItem("tokyoBaysideGolfGreenReached")||"{}");
+const $=id=>document.getElementById(id), route=$("course"),hole=$("hole");
+function holeKey(){return route.value+"-"+hole.value}
+function setStatus(s){$("status").textContent=s}
+function persist(){localStorage.setItem("tokyoBaysideGolfShots",JSON.stringify(shotsByHole));localStorage.setItem("tokyoBaysideGolfScores",JSON.stringify(scoresByHole));localStorage.setItem("tokyoBaysideGolfGreenReached",JSON.stringify(greenReachedByHole))}
+
+function fillReviewHoles(){const sel=$("reviewHole");sel.innerHTML="";Object.keys(data.routes?.[$("reviewCourse").value]||{}).forEach(n=>sel.add(new Option(n+"番ホール（PAR "+(data.routes?.[$("reviewCourse").value]?.[n]?.par??"未設定")+")",n)));}
+$("reviewCourse").onchange=fillReviewHoles;fillReviewHoles();
+$("clearScores").onclick=()=>{if(!confirm("保存した全ホールのスコアを削除します。GPSショット地点は残ります。よろしいですか？"))return;scoresByHole={};persist();renderRound();loadScoreInputs();$("clearStatus").textContent="全ホールのスコアを削除しました。GPS地点の記録は残しています。";};
+$("fullReset").onclick=()=>{
+  if(!confirm("【確認1/2】全ホールのショットGPS地点・ペナルティ記録・スコア・グリーン到達記録をすべて削除します。元に戻せません。よろしいですか？"))return;
+  const phrase=prompt("【確認2/2】完全初期化するには「初期化」と入力してください。");
+  if(phrase!=="初期化"){ $("fullResetStatus").textContent="キャンセルしました。データは削除されていません。"; return; }
+  try{
+    localStorage.removeItem("tokyoBaysideGolfShots");
+    localStorage.removeItem("tokyoBaysideGolfScores");
+    localStorage.removeItem("tokyoBaysideGolfGreenReached");
+    shotsByHole={}; scoresByHole={}; greenReachedByHole={};
+    renderShotList(); renderRound(); loadScoreInputs();
+    $("shotStatus").textContent="ショットGPS記録はありません。";
+    $("scoreStatus").textContent="まだスコアは保存されていません。";
+    $("fullResetStatus").textContent="完全初期化しました。スコア・ショットGPS・ペナルティ・到達記録を削除しました。";
+  }catch(e){
+    $("fullResetStatus").textContent="初期化に失敗しました。Safariのサイトデータ設定をご確認ください。";
+  }
+};
+ let reviewMap=null,reviewLayer=null,reviewTileLayer=null;
+function loadLeaflet(){return new Promise((resolve,reject)=>{if(window.L){resolve();return;}if(!document.getElementById("leafletCss")){const l=document.createElement("link");l.id="leafletCss";l.rel="stylesheet";l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(l);}const sc=document.createElement("script");sc.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";sc.onload=resolve;sc.onerror=()=>reject(new Error("地図ライブラリを読み込めません。通信環境を確認してください。"));document.head.appendChild(sc);});}
+$("showReview").onclick=async()=>{
+ const c=$("reviewCourse").value,n=$("reviewHole").value,key=c+"-"+n,arr=shotsByHole[key]||[],box=$("reviewMap"),status=$("reviewStatus");
+ box.style.display="block";status.textContent="航空写真を読み込んでいます…";
+ try{await loadLeaflet();if(!reviewMap){reviewMap=L.map("reviewMap");reviewTileLayer=L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",{maxZoom:18,attribution:"航空写真：国土地理院"}).addTo(reviewMap);reviewLayer=L.layerGroup().addTo(reviewMap);}setTimeout(()=>reviewMap.invalidateSize(),150);reviewLayer.clearLayers();
+ const green=data.routes?.[c]?.[n],pts=arr.map(x=>[x.lat,x.lon]);
+ if(pts.length){L.polyline(pts,{color:"#e33b2f",weight:4,opacity:.9}).addTo(reviewLayer);pts.forEach((pt,i)=>L.circleMarker(pt,{radius:7,color:"white",weight:2,fillColor:"#1267d6",fillOpacity:1}).addTo(reviewLayer).bindPopup(`${i+1}地点目${arr[i].penaltyBefore?` · 事前${arr[i].penaltyBefore}打罰`:""}<br>精度 ${Math.round(arr[i].accuracy)}m`));}
+ if(green){["front","center","back"].forEach((k,i)=>{if(green[k])L.circleMarker(green[k],{radius:6,color:"#164b2a",fillColor:"#75cf7b",fillOpacity:1}).addTo(reviewLayer).bindPopup(["グリーン手前","グリーン中央","グリーン奥"][i]);});}
+ const bounds=[];pts.forEach(p=>bounds.push(p));if(green)["front","center","back"].forEach(k=>{if(green[k])bounds.push(green[k]);});if(bounds.length)reviewMap.fitBounds(bounds,{padding:[25,25],maxZoom:18});else reviewMap.setView([36.5795,140.3505],16);
+ status.textContent=arr.length?`${c} ${n}番：${arr.length}地点を表示しています。赤い線は記録地点を順につないだ推定経路です。`:`${c} ${n}番：保存されたショット地点がありません。グリーン位置のみ表示しています。`;
+ $("reviewDetails").innerHTML=arr.length?arr.map((x,i)=>`<div style="padding:6px 0;border-bottom:1px solid #dce5dc"><b>${i+1}地点目</b> · ${new Date(x.time).toLocaleString("ja-JP")} · ${x.penaltyBefore||0}打罰 · 精度${Math.round(x.accuracy)}m</div>`).join(""):"";
+ }catch(e){status.textContent=e.message;}
+};
+function refill(){
+ hole.innerHTML="";Object.keys(data.routes?.[route.value]||{}).forEach(n=>hole.add(new Option(n+"番ホール（PAR "+(data.routes?.[route.value]?.[n]?.par??"未設定")+")",n)));
+ show();renderShotList();loadScoreInputs();renderRound();
+}
+function dist(a,b){const R=6371000,rad=x=>x*Math.PI/180,dl=rad(b[0]-a[0]),dn=rad(b[1]-a[1]);const q=Math.sin(dl/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+function show(){
+ const h=data.routes?.[route.value]?.[hole.value];
+ $("holeInfo").textContent=h?.par?`PAR ${h.par} · ${route.value} ${hole.value}番`:`${route.value} ${hole.value||""}番`;
+ for(const k of ["front","center","back"]){const v=h?.[k];$(k).textContent=pos&&v&&v.length===2?Math.round(dist([pos.latitude,pos.longitude],v)/.9144):"—"}
+}
+function success(p){pos=p.coords;show();$("quickStatus").textContent=`GPS精度 約${Math.round(pos.accuracy)}m`;setStatus(`GPS取得済み · 精度 約${Math.round(pos.accuracy)}m · ${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}`)}
+function fail(e){setStatus(({1:"位置情報が許可されていません。Safari／iPhone設定を確認してください。",2:"位置情報を取得できません。屋外で再試行してください。",3:"GPS取得がタイムアウトしました。再試行してください。"})[e.code]||"位置情報の取得に失敗しました。")}
+function get(){if(!navigator.geolocation){setStatus("このブラウザでは位置情報を利用できません");return}setStatus("GPS取得中…");navigator.geolocation.getCurrentPosition(success,fail,{enableHighAccuracy:true,timeout:20000,maximumAge:2000})}
+$("locate").onclick=get;
+$("tracking").onclick=()=>{if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;$("tracking").textContent="GPS追跡を開始";setStatus("追跡を停止しました");return}if(!navigator.geolocation){setStatus("GPSに対応していません");return}watch=navigator.geolocation.watchPosition(success,fail,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});$("tracking").textContent="GPS追跡を停止";setStatus("GPS追跡中…")};
+route.onchange=refill;hole.onchange=()=>{show();renderShotList();loadScoreInputs();renderRound()};
+$("json").value=JSON.stringify(sample,null,2);
+$("apply").onclick=()=>{try{const v=JSON.parse($("json").value);if(!v.routes)throw Error("routesがありません");data=v;refill();$("dataStatus").textContent="データを反映しました"}catch(e){$("dataStatus").textContent="JSONエラー："+e.message}};
+$("save").onclick=()=>{const b=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="tokyo-bayside-course-data.json";a.click();URL.revokeObjectURL(a.href)};
+
+function recordShot(){
+ if(!pos){$("shotStatus").textContent="先に「現在地を取得」またはGPS追跡を開始してください。";return}
+ const key=holeKey();
+ if(greenReachedByHole[key]){$("shotStatus").textContent="グリーン／カラー到達済みです。このホールの地点記録は終了しています。";return}
+ const h=data.routes?.[route.value]?.[hole.value];
+ const arr=shotsByHole[key]||[];
+ const penalty=Number($("penaltyBefore").value||0);
+ arr.push({shot:arr.length+1,lat:pos.latitude,lon:pos.longitude,accuracy:pos.accuracy,time:new Date().toISOString(),penaltyBefore:penalty,toGreenCenter:h?.center?Math.round(dist([pos.latitude,pos.longitude],h.center)/.9144):null});
+ shotsByHole[key]=arr;persist();renderShotList();$("penaltyBefore").value="0";
+ $("shotStatus").textContent=`${arr.length}地点目を保存しました${penalty?`（打つ前に${penalty}打罰を記録）`:""} · GPS精度 約${Math.round(pos.accuracy)}m`;
+}
+$("recordShot").onclick=recordShot;
+$("greenReached").onclick=()=>{
+ const key=holeKey();greenReachedByHole[key]=true;persist();
+ $("shotStatus").textContent="グリーン／カラー到達として記録しました。ここから先のショット地点記録は省略できます。";
+ renderShotList();
+};
+function renderShotList(){
+ const key=holeKey(),arr=shotsByHole[key]||[];
+ const referenceStrokes=arr.reduce((sum,s)=>sum+1+Number(s.penaltyBefore||0),0);
+ $("referenceStrokes").textContent=referenceStrokes+"打";
+ const reached=!!greenReachedByHole[key];
+ $("shotList").innerHTML=arr.length?arr.map(s=>`<li><span><b>${s.shot}地点目</b>${s.penaltyBefore?` <span class="pill">事前${s.penaltyBefore}打罰</span>`:""}<br><span class="note">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)} · 精度 ${Math.round(s.accuracy)}m</span></span><span class="pill">${s.toGreenCenter===null?"—":s.toGreenCenter+" yd to center"}</span></li>`).join(""):"<li>このホールのショット地点はまだありません。</li>";
+ $("recordShot").disabled=reached;$("recordShot").style.opacity=reached?".55":"1";
+}
+function loadScoreInputs(){
+ const h=data.routes?.[route.value]?.[hole.value],key=holeKey(),saved=scoresByHole[key]||{};
+ const strokes=$("strokes"),putts=$("putts");
+ strokes.innerHTML="";putts.innerHTML="";
+ for(let n=1;n<=12;n++)strokes.add(new Option(n+"打",String(n)));
+ for(let n=0;n<=6;n++)putts.add(new Option(n+"パット",String(n)));
+ strokes.add(new Option("13打以上","13+"));putts.add(new Option("7パット以上","7+"));
+ strokes.value=saved.strokes||String(h?.par||4);putts.value=saved.putts||"2";
+ $("scoreStatus").textContent=saved.strokes?`保存済み：${saved.strokes}打 / ${saved.putts}パット`:"まだスコアは保存されていません。";
+}
+$("saveScore").onclick=()=>{
+ const key=holeKey();scoresByHole[key]={strokes:$("strokes").value,putts:$("putts").value,updatedAt:new Date().toISOString()};
+ persist();$("scoreStatus").textContent=`保存しました：${scoresByHole[key].strokes}打 / ${scoresByHole[key].putts}パット`;renderRound();
+};
+function renderRound(){
+ const entries=Object.entries(scoresByHole);
+ if(!entries.length){$("roundSummary").textContent="各ホールのスコアはここに表示されます。";return}
+ let total=0,puttTotal=0,totalPar=0,known=0;
+ const rows=entries.map(([k,v])=>{const [r,h]=k.split("-");const s=parseInt(v.strokes,10),p=parseInt(v.putts,10),par=data.routes?.[r]?.[h]?.par;if(Number.isFinite(s)){total+=s;known++}if(Number.isFinite(p))puttTotal+=p;if(par)totalPar+=par;
+ return `<div><b>${r} ${h}番（PAR ${par??"-"}）</b>：${v.strokes}打・${v.putts}パット${Number.isFinite(s)&&par?` · ${s-par>0?"+":""}${s-par}`:""}</div>`}).join("");
+ $("roundSummary").innerHTML=rows+`<hr><b>登録済み合計：</b>${total}打 · ${puttTotal}パット（${known}ホール）${totalPar?` · PAR ${totalPar} · ${total-totalPar>0?"+":""}${total-totalPar}`:""}`;
+}
+$("exportRound").onclick=()=>{
+ const payload={course:data.courseName||"東京ベイサイドゴルフコース",shots:shotsByHole,scores:scoresByHole,greenReached:greenReachedByHole,exportedAt:new Date().toISOString()};
+ const b=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="tokyo-bayside-round.json";a.click();URL.revokeObjectURL(a.href);
+};
+refill();
+</script>
+</body>
+</html>

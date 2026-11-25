@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "東京ベイサイドゴルフ GPSナビ",
+  "short_name": "東京ベイサイドGPS",
+  "description": "東京ベイサイドゴルフコース専用 GPS距離ナビ・ショット記録・ラウンド後軌跡確認",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f6f0",
+  "theme_color": "#123b2a",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
